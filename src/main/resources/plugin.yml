@@ -29,7 +29,7 @@ commands:
     aliases: [em,emote,action]
   who:
     description: Lists the users in your current channel
-    usage: 'Usage: /<command>'
+    usage: 'Usage: /<command> [page]'
     aliases: [users,names]
   list:
     description: Lists the users on the Minecraft server
