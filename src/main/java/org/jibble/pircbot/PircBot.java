@@ -1494,27 +1494,9 @@ public abstract class PircBot implements ReplyConstants {
                 if (atPos == '+' || atPos == '-') {
                     pn = atPos;
                 }
-                else if (atPos == 'o') {
-                   if (pn == '+') {
-                       this.updateUser(channel, OP_ADD, params[p]);
-                       onOp(channel, sourceNick, sourceLogin, sourceHostname, params[p]);
-                   }
-                   else {
-                       this.updateUser(channel, OP_REMOVE, params[p]);
-                       onDeop(channel, sourceNick, sourceLogin, sourceHostname, params[p]);
-                   }
-                   p++;
-               }
-               else if (atPos == 'v') {
-                   if (pn == '+') {
-                       this.updateUser(channel, VOICE_ADD, params[p]);
-                       onVoice(channel, sourceNick, sourceLogin, sourceHostname, params[p]);
-                   }
-                   else {
-                       this.updateUser(channel, VOICE_REMOVE, params[p]);
-                       onDeVoice(channel, sourceNick, sourceLogin, sourceHostname, params[p]);
-                   }
-                   p++; 
+                else if ("qaohv".contains(""+atPos)) {
+                    this.updateUser(channel, pn=='+', ""+atPos, params[p]);
+                    p++;
                 }
                 else if (atPos == 'k') {
                     if (pn == '+') {
@@ -1660,7 +1642,7 @@ public abstract class PircBot implements ReplyConstants {
      * @param sourceHostname The hostname of the user that performed the mode change.
      * @param recipient The nick of the user that got 'opped'.
      */
-    protected void onOp(String channel, String sourceNick, String sourceLogin, String sourceHostname, String recipient) {}
+    protected Exception onOp(String channel, String sourceNick, String sourceLogin, String sourceHostname, String recipient) {return new Exception();}
 
 
     /**
@@ -1680,7 +1662,7 @@ public abstract class PircBot implements ReplyConstants {
      * @param sourceHostname The hostname of the user that performed the mode change.
      * @param recipient The nick of the user that got 'deopped'.
      */
-    protected void onDeop(String channel, String sourceNick, String sourceLogin, String sourceHostname, String recipient) {}
+    protected Exception onDeop(String channel, String sourceNick, String sourceLogin, String sourceHostname, String recipient) {return new Exception();}
 
 
     /**
@@ -1700,7 +1682,7 @@ public abstract class PircBot implements ReplyConstants {
      * @param sourceHostname The hostname of the user that performed the mode change.
      * @param recipient The nick of the user that got 'voiced'.
      */
-    protected void onVoice(String channel, String sourceNick, String sourceLogin, String sourceHostname, String recipient) {}
+    protected Exception onVoice(String channel, String sourceNick, String sourceLogin, String sourceHostname, String recipient) {return new Exception();}
 
 
     /**
@@ -1720,7 +1702,7 @@ public abstract class PircBot implements ReplyConstants {
      * @param sourceHostname The hostname of the user that performed the mode change.
      * @param recipient The nick of the user that got 'devoiced'.
      */
-    protected void onDeVoice(String channel, String sourceNick, String sourceLogin, String sourceHostname, String recipient) {}
+    protected Exception onDeVoice(String channel, String sourceNick, String sourceLogin, String sourceHostname, String recipient) {return new Exception();}
 
 
     /**
@@ -3003,7 +2985,8 @@ public abstract class PircBot implements ReplyConstants {
     }
 
 
-    private final void updateUser(String channel, int userMode, String nick) {
+    private final void updateUser(String channel, boolean added, String mode,
+                                  String nick) {
         channel = channel.toLowerCase();
         synchronized (_channels) {
             Hashtable users = (Hashtable) _channels.get(channel);
@@ -3013,32 +2996,19 @@ public abstract class PircBot implements ReplyConstants {
                 while(enumeration.hasMoreElements()) {
                     User userObj = (User) enumeration.nextElement();
                     if (userObj.getNick().equalsIgnoreCase(nick)) {
-                        if (userMode == OP_ADD) {
-                            newUser = new User("@", nick);
+                        String prefix = userObj.getPrefix();
+                        int prefix_strength = -1;
+                        if (prefix != null && prefix.length() > 0) {
+                            prefix_strength = "+%@&~".indexOf(prefix);
                         }
-                        else if (userMode == OP_REMOVE) {
-                            if(userObj.hasVoice()) {
-                                newUser = new User("+", nick);
-                            }
-                            else {
-                                newUser = new User("", nick);
-                            }
-                        }
-                        else if (userMode == VOICE_ADD) {
-                            if(userObj.isOp()) {
-                                newUser = new User("@", nick);
-                            }
-                            else {
-                                newUser = new User("+", nick);
-                            }
-                        }
-                        else if (userMode == VOICE_REMOVE) {
-                            if(userObj.isOp()) {
-                                newUser = new User("@", nick);
-                            }
-                            else {
-                                newUser = new User("", nick);
-                            }
+
+                        int changed_strength = "vhoaq".indexOf(mode);
+
+                        if (changed_strength > prefix_strength && added) {
+                            newUser = new User("" + "+%@&~".charAt(changed_strength), nick);
+                        } else if (changed_strength >= prefix_strength
+                                   && !added) {
+                            newUser = new User("", nick);
                         }
                     }
                 }

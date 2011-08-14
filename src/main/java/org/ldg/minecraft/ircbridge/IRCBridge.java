@@ -19,6 +19,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.PluginDescriptionFile;
 import org.bukkit.plugin.PluginManager;
+import org.bukkit.permissions.*;
 import org.bukkit.util.config.Configuration;
 
 import com.platymuus.bukkit.permissions.Group;
@@ -43,6 +44,7 @@ public class IRCBridge extends JavaPlugin {
     List<String> autojoin_channels;
     HashSet<String> big_channels;
     HashSet<String> official_channels;
+    HashMap<String,String> permission_channels;
 
     public PermissionsPlugin perms;
     HashMap<String,ChatColor> group_colors;
@@ -115,18 +117,44 @@ public class IRCBridge extends JavaPlugin {
         console_channel = config.getString("channels.console", "#console");
         default_channel = config.getString("channels.default", "#minecraft");
         autojoin_channels = config.getStringList("channels.autojoin", null);
-        big_channels = new HashSet<String>(config.getStringList("channels.big", null));
+        big_channels = new HashSet<String>(config.getStringList("channels.big",
+                                                                null));
 
-        // The console channel, default channel, and autojoin channels are
-        // considered official by default, and apply IRC-based nick colors.
+        permission_channels = new HashMap<String,String>();
+        List<String> permissions = config.getKeys("channels.permissions");
+        if (permissions == null) {
+            config.setProperty("channels.permissions.badass", "#badass");
+            permissions = new Vector<String>();
+            permissions.add("badass");
+        }
+
+        // Record and register the permissions for permission-based channels.
+        PluginManager pm = getServer().getPluginManager();
+        for (String permission : permissions) {
+            String channel = config.getString("channels.permissions."
+                                              + permission);
+            permission_channels.put(permission, channel);
+            pm.addPermission(new Permission("ircbridge." + permission,
+                                            "Allows access to " + channel,
+                                            PermissionDefault.OP));
+        }
+
+        // The console channel, default channel, autojoin channels, and
+        // permission-based channels are considered official by default, and
+        // apply IRC-based nick colors.
         Vector<String> default_official = new Vector<String>();
         default_official.add(console_channel);
         default_official.add(default_channel);
         for (String channel : autojoin_channels) {
             default_official.add(channel);
         }
+        for (String channel : permission_channels.values()) {
+            default_official.add(channel);
+        }
 
-        official_channels = new HashSet<String>(config.getStringList("channels.official", default_official));
+        official_channels = new HashSet<String>(
+                                      config.getStringList("channels.official",
+                                                           default_official));
 
         group_colors = new HashMap<String,ChatColor>();
         if (perms != null) {
@@ -237,7 +265,8 @@ public class IRCBridge extends JavaPlugin {
         log.severe(traceback.toString());
     }
 
-    public boolean onCommand(CommandSender sender, Command command, String commandLabel, String[] args) {
+    public boolean onCommand(CommandSender sender, Command command,
+                             String commandLabel, String[] args) {
         Player player = null;
         String name = "*CONSOLE*";
         String cmd = command.getName();
@@ -254,7 +283,8 @@ public class IRCBridge extends JavaPlugin {
                 cmd.equalsIgnoreCase("reconnect")) {
                 connection = null;
             } else if (!cmd.equalsIgnoreCase("list")) {
-                sender.sendMessage("You're not connected to IRC. (try /reconnect)");
+                sender.sendMessage("You're not connected to IRC.  "
+                                   + "(try /reconnect)");
                 return true;
             }
         }
@@ -265,7 +295,23 @@ public class IRCBridge extends JavaPlugin {
             }
 
             if (!args[0].startsWith("#")) {
-                connection.tellUser(ChatColor.RED + "Channel names must start with #");
+                connection.tellUser(ChatColor.RED
+                                    + "Channel names must start with #");
+            }
+
+            for (Map.Entry<String,String> restricted
+                                            : permission_channels.entrySet()) {
+                if (restricted.getValue().equalsIgnoreCase(args[0])) {
+                    if (!sender.hasPermission("ircbridge."
+                                              + restricted.getKey())) {
+                        connection.tellUser(ChatColor.RED
+                                            + "Cannot join channel "
+                                            + "(Invite only)");
+                        return true;
+                    } else {
+                        break;
+                    }
+                }
             }
 
             if (args.length == 1) {
@@ -279,7 +325,8 @@ public class IRCBridge extends JavaPlugin {
             }
 
             if (!args[0].startsWith("#")) {
-                connection.tellUser(ChatColor.RED + "Channel names must start with #");
+                connection.tellUser(ChatColor.RED
+                                    + "Channel names must start with #");
             }
 
             connection.partChannel(args[0]);
@@ -296,7 +343,10 @@ public class IRCBridge extends JavaPlugin {
             }
 
             connection.speaking_to = target;
-            connection.tellUser(ChatColor.YELLOW + "Your messages will now go to " + connection.convertName(target, false) + ChatColor.YELLOW + ".");
+            connection.tellUser(ChatColor.YELLOW
+                                + "Your messages will now go to "
+                                + connection.convertName(target, false)
+                                + ChatColor.YELLOW + ".");
         } else if (cmd.equalsIgnoreCase("to")) {
             if (args.length < 2) {
                 return false;
@@ -320,8 +370,12 @@ public class IRCBridge extends JavaPlugin {
                     return true;
                 } else {
                     Player target = players.get(0);
-                    sender.sendMessage(ChatColor.GREEN + "To " + target.getName() + ": " + ChatColor.WHITE + message.trim());
-                    target.sendMessage(ChatColor.GREEN + "From " + name + ": " + ChatColor.WHITE + message.trim());
+                    sender.sendMessage(ChatColor.GREEN + "To "
+                                       + target.getName() + ": "
+                                       + ChatColor.WHITE + message.trim());
+                    target.sendMessage(ChatColor.GREEN + "From " + name
+                                       + ": " + ChatColor.WHITE
+                                       + message.trim());
                     return true;
                 }
             }
@@ -344,7 +398,8 @@ public class IRCBridge extends JavaPlugin {
             connection.say("/me " + message);
         } else if (cmd.equalsIgnoreCase("list")) {
             if (!sender.hasPermission("ircbridge.list")) {
-                sender.sendMessage(ChatColor.RED + "You don't have permission.  (Try /who.)");
+                sender.sendMessage(ChatColor.RED + "You don't have permission."
+                                   + "  (Try /who.)");
                 return true;
             }
 
@@ -369,16 +424,19 @@ public class IRCBridge extends JavaPlugin {
             }
 
             if (connection.speaking_to.startsWith("#")) {
-                connection.sendRawLineViaQueue("NAMES " + connection.speaking_to);
+                connection.sendRawLineViaQueue("NAMES "
+                                               + connection.speaking_to);
             } else {
-                connection.tellUser(ChatColor.RED + "You are talking to a user, not a channel.");
+                connection.tellUser(ChatColor.RED + "You are talking to a "
+                                    + "user, not a channel.");
             }
         } else if (cmd.equalsIgnoreCase("mode")) {
             if (args.length == 0) {
                 return false;
             }
 
-            if (args[0].startsWith("#") || args[0].equalsIgnoreCase(connection.my_name)) {
+            if (args[0].startsWith("#")
+                || args[0].equalsIgnoreCase(connection.my_name)) {
                 String mode = "";
                 for (int i=1; i<args.length; i++) {
                     mode += args[i] + " ";
@@ -393,7 +451,8 @@ public class IRCBridge extends JavaPlugin {
                 if (connection.speaking_to.startsWith("#")) {
                     connection.setMode(connection.speaking_to, mode.trim());
                 } else {
-                    connection.tellUser(ChatColor.RED + "You are talking to a user, not a channel.");
+                    connection.tellUser(ChatColor.RED + "You are talking to a"
+                                        + " user, not a channel.");
                 }
             }
         } else if (cmd.equalsIgnoreCase("irckick")) {
@@ -414,11 +473,13 @@ public class IRCBridge extends JavaPlugin {
             if (connection.speaking_to.startsWith("#")) {
                 connection.kick(channel, target);
             } else {
-                connection.tellUser(ChatColor.RED + "Channel names must start with #");
+                connection.tellUser(ChatColor.RED
+                                    + "Channel names must start with #");
             }
         } else if (cmd.equalsIgnoreCase("reconnect")) {
             if (connection != null) {
-                connection.tellUser(ChatColor.RED + "You're already connected!");
+                connection.tellUser(ChatColor.RED
+                                    + "You're already connected!");
             } else {
                 bridge.connectPlayer(player);
             }
@@ -442,7 +503,8 @@ public class IRCBridge extends JavaPlugin {
 
     private class Bridge extends PlayerListener {
         private IRCBridge plugin;
-        private HashMap<String,IRCConnection> connections = new HashMap<String,IRCConnection>();
+        private HashMap<String,IRCConnection>
+            connections = new HashMap<String,IRCConnection>();
 
         public Bridge(IRCBridge plugin) {
             this.plugin = plugin;
@@ -475,7 +537,8 @@ public class IRCBridge extends JavaPlugin {
         public void onPlayerJoin(PlayerJoinEvent event) {
             Player player = event.getPlayer();
             log.info("IRCBridge: Connecting " + player.getName() + " to IRC.");
-            connections.put(player.getName(), new IRCConnection(plugin, player));
+            connections.put(player.getName(),
+                            new IRCConnection(plugin, player));
             event.setJoinMessage(null);
         }
 
@@ -494,7 +557,8 @@ public class IRCBridge extends JavaPlugin {
             Player player = event.getPlayer();
             IRCConnection connection = connections.get(player.getName());
 
-            if (!message.startsWith("/") && connection != null && connection.isConnected()) {
+            if (!message.startsWith("/")
+                && connection != null && connection.isConnected()) {
                 // We'll handle this ourselves.
                 event.setCancelled(true);
 
@@ -544,14 +608,16 @@ public class IRCBridge extends JavaPlugin {
             setLogin(name);
 
             // Pass in the user's info via WEBIRC.
-            setPreNick("WEBIRC " + plugin.webirc_pass + " IRCBridge " + host + " " + ip);
+            setPreNick("WEBIRC " + plugin.webirc_pass + " IRCBridge " + host
+                       + " " + ip);
 
             // Speak to the default channel.
             speaking_to = plugin.default_channel;
 
             // Connect to the server.
             try {
-                connect(plugin.server_address, plugin.server_port, plugin.server_pass);
+                connect(plugin.server_address, plugin.server_port,
+                        plugin.server_pass);
                 tellUser(ChatColor.GREEN + "Connected to IRC.");
             } catch (IOException e) {
                 tellUser(ChatColor.RED + "Unable to connect to IRC.");
@@ -576,6 +642,14 @@ public class IRCBridge extends JavaPlugin {
             for (String channel : plugin.autojoin_channels) {
                 joinChannel(channel);
             }
+
+            // Join permission-based channels.
+            for (String permission : plugin.permission_channels.keySet()) {
+                if (player == null
+                    || player.hasPermission("ircbridge." + permission)) {
+                    joinChannel(plugin.permission_channels.get(permission));
+                }
+            }
         }
 
         protected void partAndQuit(String reason) {
@@ -588,7 +662,8 @@ public class IRCBridge extends JavaPlugin {
 
         protected void onDisconnect() {
             tellUser(ChatColor.GRAY + "Connection to IRC lost.");
-            tellUser(ChatColor.GRAY + "Your default message target has been reset.");
+            tellUser(ChatColor.GRAY
+                     + "Your default message target has been reset.");
         }
 
         public boolean isOfficial(String channel) {
@@ -635,21 +710,25 @@ public class IRCBridge extends JavaPlugin {
                 }
             }
 
-            tellUser(formatChannel(channel) + ChatColor.WHITE + "Users" + page + ": " + user_list);
+            tellUser(formatChannel(channel) + ChatColor.WHITE + "Users" + page
+                     + ": " + user_list);
         }
 
-        protected void onTopic(String channel, String topic, String setBy, long date, boolean changed) {
+        protected void onTopic(String channel, String topic, String setBy,
+                               long date, boolean changed) {
             tellUser(formatChannel(channel) + ChatColor.GREEN + topic);
         }
 
-        protected void onJoin(String channel, String sender, String login, String Hostname) {
+        protected void onJoin(String channel, String sender, String login,
+                              String Hostname) {
             if (!plugin.big_channels.contains(channel)) {
                 tellUser(formatChannel(channel) + ChatColor.YELLOW +
                      convertNameWithoutColor(sender) + " joined the channel.");
             }
         }
 
-        protected void onQuit(String sourceNick, String sourceLogin, String sourceHostname, String reason) {
+        protected void onQuit(String sourceNick, String sourceLogin,
+                              String sourceHostname, String reason) {
             if (   !sourceNick.toUpperCase().endsWith("|MC")
                 && !sourceNick.toUpperCase().endsWith("|CONSOLE")) {
                 tellUser(ChatColor.YELLOW + convertNameWithoutColor(sourceNick)
@@ -657,30 +736,38 @@ public class IRCBridge extends JavaPlugin {
             }
         }
 
-        protected void onPart(String channel, String sender, String login, String Hostname) {
+        protected void onPart(String channel, String sender, String login,
+                              String Hostname) {
             if (!plugin.big_channels.contains(channel)) {
                 tellUser(formatChannel(channel) + ChatColor.YELLOW +
                      convertNameWithoutColor(sender) + " left the channel.");
             }
         }
 
-        protected void onKick(String channel, String kickerNick, String kickerLogin, String kickerHostname, String recipientNick, String reason) {
+        protected void onKick(String channel, String kickerNick,
+                              String kickerLogin, String kickerHostname,
+                              String recipientNick, String reason) {
             tellUser(formatChannel(channel) + ChatColor.YELLOW +
                      convertNameWithoutColor(recipientNick) + " was kicked by "
                      + convertNameWithoutColor(kickerNick) + ": " + reason);
         }
 
-        protected void onMode(String channel, String sourceNick, String sourceLogin, String sourceHostname, String mode) {
+        protected void onMode(String channel, String sourceNick,
+                              String sourceLogin, String sourceHostname,
+                              String mode) {
             tellUser(formatChannel(channel) + ChatColor.YELLOW +
                      convertNameWithoutColor(sourceNick) + " set mode " + mode);
         }
 
-        protected void onNickChange(String oldNick, String login, String hostname, String newNick) {
+        protected void onNickChange(String oldNick, String login,
+                                    String hostname, String newNick) {
             tellUser(ChatColor.YELLOW + convertNameWithoutColor(oldNick)
                      + " is now known as " + convertNameWithoutColor(newNick));
         }
 
-        protected void onNotice(String sourceNick, String sourceLogin, String sourceHostname, String target, String notice) {
+        protected void onNotice(String sourceNick, String sourceLogin,
+                                String sourceHostname, String target,
+                                String notice) {
             if (sourceNick.toUpperCase().endsWith("SERV")) {
                 tellUser(ChatColor.GOLD + convertNameWithoutColor(sourceNick)
                          + ": " + notice);
@@ -694,15 +781,18 @@ public class IRCBridge extends JavaPlugin {
             }
         }
 
-        protected void onMessage(String channel, String sender, String login, String hostname, String message) {
+        protected void onMessage(String channel, String sender, String login,
+                                 String hostname, String message) {
             heard(sender, channel, message);
         }
 
-        protected void onPrivateMessage(String sender, String login, String hostname, String message) {
+        protected void onPrivateMessage(String sender, String login,
+                                        String hostname, String message) {
             heard(sender, my_name, message);
         }
 
-        protected void onAction(String sender, String login, String hostname, String target, String action) {
+        protected void onAction(String sender, String login, String hostname,
+                                String target, String action) {
             heard(sender, target, "/me " + action);
         }
 
@@ -734,6 +824,10 @@ public class IRCBridge extends JavaPlugin {
         }
 
         public String convertNameWithoutColor(String name) {
+            if (!Character.isLetterOrDigit(name.charAt(0))) {
+                name = name.substring(1);
+            }
+
             if (name.startsWith("#")) {
                 return name;
             } else if (name.toUpperCase().endsWith("|MC")) {
@@ -741,11 +835,7 @@ public class IRCBridge extends JavaPlugin {
             } else if (name.endsWith("|Console")) {
                 return "Console";
             } else {
-                if (!Character.isLetterOrDigit(name.charAt(0))) {
-                    return name.substring(1) + "|IRC";
-                } else {
-                    return name + "|IRC";
-                }
+                return name + "|IRC";
             }
         }
 
@@ -775,9 +865,11 @@ public class IRCBridge extends JavaPlugin {
                 intro = who + "->Console: ";
             } else if (!where.startsWith("#")) {
                 if (ChatColor.stripColor(who).equalsIgnoreCase(my_name)) {
-                    intro = ChatColor.GREEN + "To " + convertName(where, false) + ChatColor.GREEN + ": " + ChatColor.WHITE;
+                    intro = ChatColor.GREEN + "To " + convertName(where, false)
+                            + ChatColor.GREEN + ": " + ChatColor.WHITE;
                 } else {
-                    intro = ChatColor.GREEN + "From " + who + ChatColor.GREEN + ": " + ChatColor.WHITE;
+                    intro = ChatColor.GREEN + "From " + who + ChatColor.GREEN
+                            + ": " + ChatColor.WHITE;
                 }
             } else {
                 where = formatChannel(where) + ChatColor.WHITE;
