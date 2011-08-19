@@ -26,6 +26,8 @@ import com.platymuus.bukkit.permissions.Group;
 import com.platymuus.bukkit.permissions.PermissionsPlugin;
 import com.platymuus.bukkit.permissions.data.DataAccessException;
 
+import com.hackhalo2.name.Special;
+
 import org.jibble.pircbot.*;
 
 public class IRCBridge extends JavaPlugin {
@@ -46,6 +48,8 @@ public class IRCBridge extends JavaPlugin {
     HashSet<String> official_channels;
     HashMap<String,String> permission_channels;
 
+    public Special special;
+
     public PermissionsPlugin perms;
     HashMap<String,ChatColor> group_colors;
     ChatColor console_color;
@@ -58,6 +62,8 @@ public class IRCBridge extends JavaPlugin {
     public void onDisable() {
         bridge.quitAll();
         bridge = null;
+        perms = null;
+        special = null;
     }
 
     public void onEnable() {
@@ -67,7 +73,13 @@ public class IRCBridge extends JavaPlugin {
         perms = (PermissionsPlugin) pm.getPlugin("PermissionsBukkit");
         if (perms == null) {
             log.info("IRCBridge: PermissionsBukkit not found!");
-            log.info("IRCBridge: Colored chat will not be available.");
+            log.info("IRCBridge: Group-based colors will not be available.");
+        }
+
+        special = (Special) pm.getPlugin("Special");
+        if (special == null) {
+            log.info("IRCBridge: Special not found!");
+            log.info("IRCBridge: Special integration will not be available.");
         }
 
         configure();
@@ -677,20 +689,20 @@ public class IRCBridge extends JavaPlugin {
 
             boolean officialChannel = isOfficial(channel);
 
-            HashMap<String,ChatColor> colors = new HashMap<String,ChatColor>();
+            HashMap<String,String> formats = new HashMap<String,String>();
             for (User user : users) {
                 String name = user.getPrefix() + user.getNick();
-                colors.put(convertNameWithoutColor(name),
-                           plugin.colorOf(name, officialChannel));
+                formats.put(convertNameWithoutColor(name),
+                            convertName(name, officialChannel));
             }
 
-            Vector<String> user_names = new Vector<String>(colors.keySet());
+            Vector<String> user_names = new Vector<String>(formats.keySet());
             Collections.sort(user_names);
 
             int count = user_names.size();
             if (count < 20) {
                 for (String user : user_names) {
-                    user_list += sep + colors.get(user) + user;
+                    user_list += sep + formats.get(user);
                     sep = ChatColor.WHITE + ", ";
                 }
             } else {
@@ -705,7 +717,7 @@ public class IRCBridge extends JavaPlugin {
                     }
 
                     String user = user_names.get(user_id);
-                    user_list += sep + user + colors.get(user);
+                    user_list += sep + formats.get(user);
                     sep = ChatColor.WHITE + ", ";
                 }
             }
@@ -819,8 +831,13 @@ public class IRCBridge extends JavaPlugin {
         }
 
         public String convertName(String name, boolean officialChannel) {
-            return plugin.colorOf(name, officialChannel)
-                   + convertNameWithoutColor(name);
+            if (special != null) {
+                return plugin.colorOf(name, officialChannel)
+                       + special.format(convertNameWithoutColor(name));
+            } else {
+                return plugin.colorOf(name, officialChannel)
+                       +                convertNameWithoutColor(name) ;
+            }
         }
 
         public String convertNameWithoutColor(String name) {
