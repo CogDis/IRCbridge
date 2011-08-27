@@ -12,6 +12,7 @@ import org.bukkit.event.Event;
 import org.bukkit.event.player.PlayerListener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerKickEvent;
 import org.bukkit.event.player.PlayerChatEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
@@ -92,6 +93,8 @@ public class IRCBridge extends JavaPlugin {
         pm.registerEvent(Event.Type.PLAYER_JOIN, bridge,
                          Event.Priority.Highest, this);
         pm.registerEvent(Event.Type.PLAYER_QUIT, bridge,
+                         Event.Priority.Highest, this);
+        pm.registerEvent(Event.Type.PLAYER_KICK, bridge,
                          Event.Priority.Highest, this);
         pm.registerEvent(Event.Type.PLAYER_CHAT, bridge,
                          Event.Priority.Highest, this);
@@ -548,18 +551,35 @@ public class IRCBridge extends JavaPlugin {
 
         public void onPlayerJoin(PlayerJoinEvent event) {
             Player player = event.getPlayer();
-            log.info("IRCBridge: Connecting " + player.getName() + " to IRC.");
-            connections.put(player.getName(),
-                            new IRCConnection(plugin, player));
+            String name = player.getName();
+            if (connections.containsKey(name)) {
+                IRCConnection connection = connections.get(name);
+                if (connection.isConnected()) {
+                    connection.partAndQuit("Re-establishing connection.");
+                }
+            }
+            log.info("IRCBridge: Connecting " + name + " to IRC.");
+            connections.put(name, new IRCConnection(plugin, player));
             event.setJoinMessage(null);
         }
 
-        public void onPlayerQuit(PlayerQuitEvent event) {
-            Player player = event.getPlayer();
-
+        public boolean playerLeft(Player player) {
             IRCConnection connection = connections.get(player.getName());
             if (connection != null) {
                 connection.partAndQuit("Left Minecraft.");
+                return true;
+            }
+            return false;
+        }
+
+        public void onPlayerKick(PlayerKickEvent event) {
+            if (playerLeft(event.getPlayer())) {
+                event.setLeaveMessage(null);
+            }
+        }
+
+        public void onPlayerQuit(PlayerQuitEvent event) {
+            if (playerLeft(event.getPlayer())) {
                 event.setQuitMessage(null);
             }
         }
@@ -599,7 +619,7 @@ public class IRCBridge extends JavaPlugin {
             connection_thread.start();
         }
 
-        public void run() {
+        public synchronized void run() {
             // User info for console.
             String host = "localhost";
             String ip = "127.0.0.1";
@@ -664,7 +684,7 @@ public class IRCBridge extends JavaPlugin {
             }
         }
 
-        protected void partAndQuit(String reason) {
+        protected synchronized void partAndQuit(String reason) {
             for (String channel : getChannels()) {
                 partChannel(channel, reason);
             }
