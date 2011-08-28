@@ -1,8 +1,12 @@
 package org.ldg.minecraft.ircbridge;
 
 import java.io.*;
+import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.logging.FileHandler;
+import java.util.logging.Formatter;
 import java.util.logging.Logger;
+import java.util.logging.LogRecord;
 
 import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
@@ -33,6 +37,10 @@ import org.jibble.pircbot.*;
 
 public class IRCBridge extends JavaPlugin {
     Logger log = Logger.getLogger("Minecraft");
+
+    Logger message_log = Logger.getLogger("ircbridge.pms");
+    FileHandler message_file = null;
+    boolean log_pms;
 
     String console_id;
     String default_channel;
@@ -65,10 +73,26 @@ public class IRCBridge extends JavaPlugin {
         bridge = null;
         perms = null;
         special = null;
+
+        if (message_file != null) {
+            message_log.removeHandler(message_file);
+            message_log.setUseParentHandlers(true);
+            message_file = null;
+        }
     }
 
     public void onEnable() {
         last_complaint_time = 0;
+
+        try {
+            message_file = new FileHandler("pms.log", true);
+            message_file.setFormatter(new TinyFormatter());
+            message_log.addHandler(message_file);
+            message_log.setUseParentHandlers(false);
+        } catch (Exception e) {
+            message_file = null;
+            complain("unable to open message log file", e);
+        }
 
         PluginManager pm = getServer().getPluginManager();
         perms = (PermissionsPlugin) pm.getPlugin("PermissionsBukkit");
@@ -124,6 +148,8 @@ public class IRCBridge extends JavaPlugin {
     public void configure() {
         Configuration config = getConfiguration();
         config.load();
+
+        log_pms = config.getBoolean("log.pms", false);
 
         // |Console will be appended to this.
         console_id = config.getString("console.id", "The");
@@ -203,6 +229,12 @@ public class IRCBridge extends JavaPlugin {
         webirc_pass = config.getString("server.webirc_password", "");
 
         config.save();
+    }
+
+    public void logMessage(String message) {
+        if (log_pms) {
+            message_log.info(message);
+        }
     }
 
     public ChatColor colorOf(String name, boolean officialChannel) {
@@ -822,12 +854,16 @@ public class IRCBridge extends JavaPlugin {
 
         protected void onPrivateMessage(String sender, String login,
                                         String hostname, String message) {
+            plugin.logMessage(sender + "->" + getName() + ": " + message);
             heard(sender, getName(), message);
         }
 
         protected void onAction(String sender, String login, String hostname,
                                 String target, String action) {
             heard(sender, target, "/me " + action);
+            if (!target.startsWith("#")) {
+                plugin.logMessage(sender + "->" + getName() + ":* " + action);
+            }
         }
 
         public void say(String message) {
@@ -837,6 +873,9 @@ public class IRCBridge extends JavaPlugin {
         public void say(String message, String target) {
             sendMessage(target, message);
             heard(getName(), target, message);
+            if (!target.startsWith("#")) {
+                plugin.logMessage(getName() + "->" + target + ": " + message);
+            }
         }
 
         public String revertName(String name) {
@@ -967,6 +1006,14 @@ public class IRCBridge extends JavaPlugin {
             } else {
                 log.info(ChatColor.stripColor(message));
             }
+        }
+    }
+
+    private class TinyFormatter extends Formatter {
+        private SimpleDateFormat timestamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        public String format(LogRecord record) {
+            return timestamp.format(record.getMillis()) + " "
+                   + record.getMessage() + "\n";
         }
     }
 }
