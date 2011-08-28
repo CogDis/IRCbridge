@@ -312,6 +312,7 @@ public class IRCBridge extends JavaPlugin {
             if (!args[0].startsWith("#")) {
                 connection.tellUser(ChatColor.RED
                                     + "Channel names must start with #");
+                return true;
             }
 
             for (Map.Entry<String,String> restricted
@@ -342,6 +343,7 @@ public class IRCBridge extends JavaPlugin {
             if (!args[0].startsWith("#")) {
                 connection.tellUser(ChatColor.RED
                                     + "Channel names must start with #");
+                return true;
             }
 
             connection.partChannel(args[0]);
@@ -354,7 +356,7 @@ public class IRCBridge extends JavaPlugin {
             if (args.length == 0) {
                 target = default_channel;
             } else {
-                target = connection.revertName(args[0]);
+                target = connection.matchUser(args[0]);
             }
 
             connection.speaking_to = target;
@@ -373,7 +375,7 @@ public class IRCBridge extends JavaPlugin {
             }
 
             if (connection != null) {
-                String target = connection.revertName(args[0]);
+                String target = connection.matchUser(args[0]);
                 connection.say(message.trim(), target);
             } else {
                 List<Player> players = getServer().matchPlayer(args[0]);
@@ -820,7 +822,7 @@ public class IRCBridge extends JavaPlugin {
 
         protected void onPrivateMessage(String sender, String login,
                                         String hostname, String message) {
-            heard(sender, my_name, message);
+            heard(sender, getName(), message);
         }
 
         protected void onAction(String sender, String login, String hostname,
@@ -894,28 +896,62 @@ public class IRCBridge extends JavaPlugin {
             return "";
         }
 
+        public String matchUser(String rawnick) {
+            String reverted = revertName(rawnick);
+            if (!reverted.endsWith("|MC")) {
+                return reverted;
+            }
+
+            String nick = rawnick.toLowerCase();
+            if (speaking_to.startsWith("#")) {
+                // Match against users in the current channel.
+                Vector<String> matches = new Vector<String>();
+                for (User user : getUsers(speaking_to)) {
+                    String user_nick = user.getNick().toLowerCase();
+                    if (user_nick.equalsIgnoreCase(nick + "|MC")) {
+                        return user.getNick();
+                    } else if (user_nick.endsWith("|console")) {
+                        continue;
+                    } else if (user_nick.startsWith(nick)) {
+                        matches.add(user.getNick());
+                    }
+                }
+
+                if (matches.size() == 1) {
+                    return matches.get(0);
+                } else {
+                    return rawnick;
+                }
+            } else if (speaking_to.toLowerCase().startsWith(nick)) {
+                return speaking_to;
+            } else {
+                return rawnick;
+            }
+        }
+
         public void heard(String who, String where, String what) {
-            who = convertName(getPrefix(who,where) + who, isOfficial(where));
+            String display_who = convertName(getPrefix(who,where) + who,
+                                             isOfficial(where));
 
             String intro;
             if (where == null) {
                 intro = who + "->Console: ";
             } else if (!where.startsWith("#")) {
-                if (ChatColor.stripColor(who).equalsIgnoreCase(my_name)) {
+                if (who.equalsIgnoreCase(getName())) {
                     intro = ChatColor.GREEN + "To " + convertName(where, false)
                             + ChatColor.GREEN + ": " + ChatColor.WHITE;
                 } else {
-                    intro = ChatColor.GREEN + "From " + who + ChatColor.GREEN
-                            + ": " + ChatColor.WHITE;
+                    intro = ChatColor.GREEN + "From " + display_who
+                            + ChatColor.GREEN + ": " + ChatColor.WHITE;
                 }
             } else {
                 where = formatChannel(where) + ChatColor.WHITE;
 
                 if (what.startsWith("/me ")) {
                     what = what.substring(4);
-                    intro = where + "* " + who + ChatColor.WHITE + " ";
+                    intro = where + "* " + display_who + ChatColor.WHITE + " ";
                 } else {
-                    intro = where + "<" + who + ChatColor.WHITE + "> ";
+                    intro = where + "<" + display_who + ChatColor.WHITE + "> ";
                 }
             }
 
