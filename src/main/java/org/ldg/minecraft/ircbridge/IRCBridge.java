@@ -861,13 +861,13 @@ public class IRCBridge extends JavaPlugin {
         }
 
         public String convertNameWithoutColor(String name) {
-            if (!Character.isLetterOrDigit(name.charAt(0))) {
+            if (name.startsWith("#")) {
+                return name;
+            } else if (!Character.isLetterOrDigit(name.charAt(0))) {
                 name = name.substring(1);
             }
 
-            if (name.startsWith("#")) {
-                return name;
-            } else if (name.toUpperCase().endsWith("|MC")) {
+            if (name.toUpperCase().endsWith("|MC")) {
                 return name.substring(0, name.length()-3);
             } else if (name.endsWith("|Console")) {
                 return "Console";
