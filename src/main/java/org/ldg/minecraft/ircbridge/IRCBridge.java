@@ -991,15 +991,16 @@ public class IRCBridge extends JavaPlugin {
 
         public String matchUser(String rawnick) {
             String reverted = revertName(rawnick);
-            if (               !reverted.endsWith("|MC")
-                || rawnick.toUpperCase().endsWith("|MC")) {
-                // If a full name/channel has been specified, use it.
+            // If a full name/channel has been specified, use it.
+            if (!reverted.endsWith("|MC")) {
                 return reverted;
+            } else if (rawnick.toUpperCase().endsWith("|MC")) {
+                return rawnick;
             }
 
             if (plugin.getServer().getPlayer(rawnick) != null) {
                 // Exact matches on the server take precedence.
-                return rawnick;
+                return rawnick + "|MC";
             }
 
             String nick = rawnick.toLowerCase();
@@ -1029,7 +1030,7 @@ public class IRCBridge extends JavaPlugin {
                 }
             }
 
-            return rawnick;
+            return reverted;
         }
 
         public void heard(String who, String where, String what) {
