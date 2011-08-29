@@ -974,7 +974,7 @@ public class IRCBridge extends JavaPlugin {
             return "";
         }
 
-        private void getMatches(HashSet<String> matches, String nick,
+        private void getMatches(HashMap<String,String> matches, String nick,
                                   String channel) {
             for (User user : getUsers(channel)) {
                 String user_nick = user.getNick().toLowerCase();
@@ -984,7 +984,7 @@ public class IRCBridge extends JavaPlugin {
                 }
 
                 if (user_nick.startsWith(nick)) {
-                    matches.add(user.getNick());
+                    matches.put(user_nick, user.getNick());
                 }
             }
         }
@@ -998,22 +998,19 @@ public class IRCBridge extends JavaPlugin {
                 return rawnick;
             }
 
-            if (plugin.getServer().getPlayer(rawnick) != null) {
-                // Exact matches on the server take precedence.
-                return rawnick + "|MC";
-            }
-
             String nick = rawnick.toLowerCase();
-            HashSet<String> matches = new HashSet<String>();
+            HashMap<String,String> matches = new HashMap<String,String>();
             if (speaking_to.startsWith("#")) {
                 // Match against users in the current channel.
                 getMatches(matches, nick, speaking_to);
 
                 if (matches.size() == 1) {
-                    for (String match : matches) {
+                    for (String match : matches.keySet()) {
                         // Silly, but an easy way to grab the only element.
-                        return match;
+                        return matches.get(match);
                     }
+                } else if (matches.containsKey(nick)) {
+                    return matches.get(nick);
                 }
             } else if (speaking_to.toLowerCase().startsWith(nick)) {
                 return speaking_to;
@@ -1024,10 +1021,12 @@ public class IRCBridge extends JavaPlugin {
             }
 
             if (matches.size() == 1) {
-                for (String match : matches) {
+                for (String match : matches.keySet()) {
                     // Silly, but an easy way to grab the only element.
-                    return match;
+                    return matches.get(match);
                 }
+            } else if (matches.containsKey(nick)) {
+                return matches.get(nick);
             }
 
             return reverted;
@@ -1049,16 +1048,17 @@ public class IRCBridge extends JavaPlugin {
                             + ChatColor.GREEN + ":" + ChatColor.LIGHT_PURPLE;
                 }
             } else {
-                where = formatChannel(where) + ChatColor.WHITE;
-
                 ChatColor text_color = ChatColor.WHITE;
+
                 if (plugin.permission_channels.containsValue(where)) {
                     text_color = ChatColor.GREEN;
                 }
 
+                where = formatChannel(where) + text_color;
+
                 if (what.startsWith("/me ")) {
                     what = what.substring(4);
-                    intro = where + text_color + "* " + display_who + text_color;
+                    intro = where + "* " + display_who + text_color;
                 } else {
                     intro = where + "" + display_who + text_color + ":";
                 }
