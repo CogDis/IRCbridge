@@ -3009,6 +3009,8 @@ public abstract class PircBot implements ReplyConstants {
                         } else if (changed_strength >= prefix_strength
                                    && !added) {
                             newUser = new User("", nick);
+                        } else if (prefix_strength > -1) {
+                            newUser = new User("" + "+%@&~".charAt(prefix_strength), nick);
                         }
                     }
                 }
