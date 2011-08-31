@@ -1009,6 +1009,8 @@ public class IRCBridge extends JavaPlugin {
                         // Silly, but an easy way to grab the only element.
                         return matches.get(match);
                     }
+                } else if (matches.containsKey(nick + "|mc")) {
+                    return matches.get(nick + "|mc");
                 } else if (matches.containsKey(nick)) {
                     return matches.get(nick);
                 }
@@ -1025,6 +1027,8 @@ public class IRCBridge extends JavaPlugin {
                     // Silly, but an easy way to grab the only element.
                     return matches.get(match);
                 }
+            } else if (matches.containsKey(nick + "|mc")) {
+                return matches.get(nick + "|mc");
             } else if (matches.containsKey(nick)) {
                 return matches.get(nick);
             }
