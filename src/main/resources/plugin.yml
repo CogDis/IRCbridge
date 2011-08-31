@@ -6,19 +6,19 @@ version: 1.0
 commands:
   join:
     description: Join an IRC channel
-    usage: 'Usage: /<command> <channel> [password]'
+    usage: 'Usage: /<command> <#channel> [password]'
     aliases: [j,enter]
   part:
     description: Leave an IRC channel
-    usage: 'Usage: /<command> <channel>'
+    usage: 'Usage: /<command> <#channel>'
     aliases: [p,leave,exit]
   switch:
     description: Talk to an IRC user or channel by default
-    usage: 'Usage: /<command> <channel or user>'
+    usage: 'Usage: /<command> <#channel or user>'
     aliases: [sw,talkto,converse,channel,ch]
   to:
     description: Talk to an IRC user or channel
-    usage: 'Usage: /<command> <channel or user> <message>'
+    usage: 'Usage: /<command> <#channel or user> <message>'
     aliases: [message,msg,tell,whisper,w,2]
   say:
     description: Send a message to your default user or channel
@@ -29,18 +29,18 @@ commands:
     aliases: [em,emote,action]
   who:
     description: Lists the users in your current channel
-    usage: 'Usage: /<command> [page]'
-    aliases: [users,names]
+    usage: 'Usage: /<command> [#channel] [page]'
+    aliases: [irc,ircwho,whoirc,all,whoall,players,listplayers,users,names]
   list:
     description: Lists the users on the Minecraft server
     usage: 'Usage: /<command>'
     aliases: [online]
   mode:
     description: Sets an IRC mode
-    usage: 'Usage: /<command> [channel] <mode> [target]'
+    usage: 'Usage: /<command> [#channel] <mode> [target]'
   irckick:
     description: Kicks a user from your IRC channel
-    usage: 'Usage: /<command> [channel] <target>'
+    usage: 'Usage: /<command> [#channel] <target>'
   reconnect:
     description: Reconnect to IRC after getting disconnected.
     usage: 'Usage: /<command>'

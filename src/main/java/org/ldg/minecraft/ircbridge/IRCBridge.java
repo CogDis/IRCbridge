@@ -70,6 +70,10 @@ public class IRCBridge extends JavaPlugin {
     private long startup_time;
     private boolean shutting_down = false;
 
+    public static final int ALL = 0;
+    public static final int MINECRAFT = 1;
+    public static final int IRC = 2;
+
     public boolean beingQuiet() {
         if (shutting_down || startup_time + 5000 > System.currentTimeMillis()) {
             return true;
@@ -375,6 +379,11 @@ public class IRCBridge extends JavaPlugin {
                 }
             }
 
+            // Get a full user list on join.
+            connection.who_target = args[0];
+            connection.who_page = 1;
+            connection.who_mode = ALL;
+
             if (args.length == 1) {
                 connection.joinChannel(args[0]);
             } else {
@@ -461,7 +470,7 @@ public class IRCBridge extends JavaPlugin {
         } else if (cmd.equalsIgnoreCase("list")) {
             if (!sender.hasPermission("ircbridge.list")) {
                 sender.sendMessage(ChatColor.RED + "You don't have permission."
-                                   + "  (Try /who.)");
+                                   + "  (Try /who, /irc, or /users.)");
                 return true;
             }
 
@@ -473,22 +482,52 @@ public class IRCBridge extends JavaPlugin {
             }
             sender.sendMessage(message);
         } else if (cmd.equalsIgnoreCase("who")) {
-            if (args.length > 1) {
+            if (args.length > 2) {
                 return false;
             }
 
             connection.who_page = 0;
+            connection.who_target = connection.speaking_to;
             if (args.length == 1) {
+                if (args[0].startsWith("#")) {
+                    // /<command> <#channel>
+                    connection.who_target = args[0];
+                } else {
+                    // /<command> <page>
+                    try {
+                        connection.who_page = Integer.parseInt(args[0]);
+                    } catch (NumberFormatException e) {
+                        return false;
+                    }
+                }
+            } else if (args.length == 2) {
+                // /<command> <#channel> <page>
+                if (!args[0].startsWith("#")) {
+                    return false;
+                }
+
                 try {
-                    connection.who_page = Integer.parseInt(args[0]);
+                    connection.who_page = Integer.parseInt(args[1]);
                 } catch (NumberFormatException e) {
                     return false;
                 }
+
+                connection.who_target = args[0];
             }
 
-            if (connection.speaking_to.startsWith("#")) {
+            String alias = commandLabel.toLowerCase();
+            if (alias.startsWith("irc")) {
+                connection.who_mode = IRC;
+            } else if (   alias.equals("who")
+                       || alias.contains("players")) {
+                connection.who_mode = MINECRAFT;
+            } else { // /all, /whoall, /names, /users
+                connection.who_mode = ALL;
+            }
+
+            if (connection.who_target.startsWith("#")) {
                 connection.sendRawLineViaQueue("NAMES "
-                                               + connection.speaking_to);
+                                               + connection.who_target);
             } else {
                 connection.tellUser(ChatColor.RED + "You are talking to a "
                                     + "user, not a channel.", true);
@@ -654,6 +693,8 @@ public class IRCBridge extends JavaPlugin {
         public String speaking_to;
 
         public int who_page = 1;
+        public String who_target = null;
+        public int who_mode = IRCBridge.MINECRAFT;
 
         private Player player = null;
 
@@ -693,6 +734,9 @@ public class IRCBridge extends JavaPlugin {
 
             // Speak to the default channel.
             speaking_to = plugin.default_channel;
+
+            // Get an initial user list from the default channel.
+            who_target = speaking_to;
 
             // Connect to the server.
             try {
@@ -751,10 +795,8 @@ public class IRCBridge extends JavaPlugin {
         }
 
         protected void onUserList(String channel, User[] users) {
-            if (!channel.equalsIgnoreCase(speaking_to)) {
-                // Ignore who lists from non-selected channels.
-                // The main use of this is to hide the who lists sent on joining
-                // a channel, especially for autojoin channels when you connect.
+            if (!channel.equalsIgnoreCase(who_target)) {
+                // Ignore user lists unless requested.
                 return;
             }
 
@@ -764,9 +806,20 @@ public class IRCBridge extends JavaPlugin {
 
             boolean officialChannel = isOfficial(channel);
 
+            int ignored = 0;
+            boolean ignore_irc = (who_mode == IRCBridge.MINECRAFT);
+            boolean ignore_minecraft = (who_mode == IRCBridge.IRC);
+
             HashMap<String,String> formats = new HashMap<String,String>();
             for (User user : users) {
                 String name = user.getPrefix() + user.getNick();
+                boolean is_minecraft = name.toUpperCase().endsWith("|MC");
+                if (   (ignore_irc       && !is_minecraft)
+                    || (ignore_minecraft &&  is_minecraft)) {
+                    ignored++;
+                    continue;
+                }
+
                 formats.put(convertNameWithoutColor(name),
                             convertName(name, officialChannel));
             }
@@ -794,6 +847,18 @@ public class IRCBridge extends JavaPlugin {
                     String user = user_names.get(user_id);
                     user_list += sep + formats.get(user);
                     sep = ChatColor.WHITE + ", ";
+                }
+            }
+
+            if (ignored > 0) {
+                String s = ignored > 1 ? "s" : "";
+                String start = ChatColor.WHITE + (count > 1 ? "," : "");
+                if (ignore_irc) {
+                    user_list += start + " and " + ignored + " IRC user" + s
+                                 + " (see /irc or /users).";
+                } else { // ignore_minecraft
+                    user_list += start + " and " + ignored + " Minecraft user"
+                                 + s + " (see /who or /users).";
                 }
             }
 
