@@ -22,7 +22,6 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.plugin.Plugin;
-import org.bukkit.plugin.PluginDescriptionFile;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.permissions.*;
 import org.bukkit.util.config.Configuration;
@@ -35,9 +34,9 @@ import com.hackhalo2.name.Special;
 
 import org.jibble.pircbot.*;
 
-public class IRCBridge extends JavaPlugin {
-    Logger log = Logger.getLogger("Minecraft");
+import org.ldg.minecraft.EnhancedPlugin;
 
+public class IRCBridge extends EnhancedPlugin {
     Logger message_log = Logger.getLogger("ircbridge.pms");
     FileHandler message_file = null;
     boolean log_pms;
@@ -66,7 +65,6 @@ public class IRCBridge extends JavaPlugin {
 
     private Bridge bridge;
     private String name;
-    private long last_complaint_time;
     private long startup_time;
     private boolean shutting_down = false;
 
@@ -94,10 +92,12 @@ public class IRCBridge extends JavaPlugin {
             message_log.setUseParentHandlers(true);
             message_file = null;
         }
+
+        super.onDisable();
     }
 
     public void onEnable() {
-        last_complaint_time = 0;
+        super.onEnable();
         shutting_down = false;
         startup_time = System.currentTimeMillis();
 
@@ -126,9 +126,6 @@ public class IRCBridge extends JavaPlugin {
 
         configure();
 
-        PluginDescriptionFile pdfFile = this.getDescription();
-        name = pdfFile.getName() + " " + pdfFile.getVersion();
-
         bridge = new Bridge(this);
 
         pm.registerEvent(Event.Type.PLAYER_JOIN, bridge,
@@ -141,8 +138,6 @@ public class IRCBridge extends JavaPlugin {
                          Event.Priority.Highest, this);
 
         bridge.connectAll(getServer().getOnlinePlayers());
-
-        log.info(pdfFile.getName() + " " + pdfFile.getVersion() + " enabled." );
     }
 
     public ChatColor getColor(Configuration config, String node) {
@@ -306,27 +301,6 @@ public class IRCBridge extends JavaPlugin {
                 return ChatColor.WHITE;
             }
         }
-    }
-
-    public void complain(String message, Exception problem) {
-        complain(message, problem, false);
-    }
-
-    public void complain(String message, Exception problem, boolean always) {
-        if (!always) {
-            long time = System.currentTimeMillis();
-            if (time > last_complaint_time + 60 * 1000) {
-                last_complaint_time = time;
-            } else {
-                return;
-            }
-        }
-
-        log.severe(name + " " + message + ":");
-
-        StringWriter traceback = new StringWriter();
-        problem.printStackTrace(new PrintWriter(traceback));
-        log.severe(traceback.toString());
     }
 
     public boolean onCommand(CommandSender sender, Command command,
@@ -590,17 +564,6 @@ public class IRCBridge extends JavaPlugin {
         }
 
         return true;
-    }
-
-    private class Heartbeat implements Runnable {
-        private IRCBridge plugin;
-
-        public Heartbeat(IRCBridge plugin) {
-            this.plugin = plugin;
-        }
-
-        public void run() {
-        }
     }
 
     private class Bridge extends PlayerListener {

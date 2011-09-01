@@ -20,5 +20,10 @@
                 <artifactId>Special</artifactId>
                 <version>1.0</version>
         </dependency>
+        <dependency>
+                <groupId>org.lost-dimension-games</groupId>
+                <artifactId>enhancedplugin</artifactId>
+                <version>1.0</version>
+        </dependency>
   </dependencies>
 </project>
