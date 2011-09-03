@@ -800,13 +800,13 @@ public class IRCBridge extends EnhancedPlugin {
             Collections.sort(user_names);
 
             int count = user_names.size();
-            if (count < 20) {
+            int pages = (int) Math.ceil(count / 20.0);
+            if (pages == 1) {
                 for (String user : user_names) {
                     user_list += sep + formats.get(user);
                     sep = ChatColor.WHITE + ", ";
                 }
             } else {
-                int pages = (int) Math.ceil(count / 20.0);
                 who_page = Math.max(0, Math.min(pages - 1, who_page - 1));
                 page = " (page " + (who_page + 1) + "/" + pages + ")";
 
@@ -822,7 +822,7 @@ public class IRCBridge extends EnhancedPlugin {
                 }
             }
 
-            if (ignored > 0) {
+            if ((ignored > 0) && ((pages == 1) || (who_page == (pages-1)))) {
                 String s = ignored > 1 ? "s" : "";
                 String start = ChatColor.WHITE + (count > 1 ? "," : "");
                 if (ignore_irc) {
