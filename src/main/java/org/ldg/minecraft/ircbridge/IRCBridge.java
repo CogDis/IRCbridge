@@ -256,8 +256,14 @@ public class IRCBridge extends EnhancedPlugin {
 
         // IRC prefixes
         String prefix = "none";
-        if (!Character.isLetterOrDigit(name.charAt(0))) {
+        if (!Character.isLetter(name.charAt(0))) {
             prefix = name.substring(0,1);
+            name = name.substring(1);
+        }
+
+        if (prefix.equalsIgnoreCase("_")) {
+            prefix = "none";
+        } else if (name.charAt(0) == '_' && name.endsWith("|MC")) {
             name = name.substring(1);
         }
 
@@ -685,6 +691,9 @@ public class IRCBridge extends EnhancedPlugin {
                 host = player.getAddress().getHostName();
                 name = my_name;
                 nick = my_name + "|MC";
+                if (!Character.isLetter(nick.charAt(0))) {
+                    nick = "_" + nick;
+                }
             }
 
             // Set the nickname.
@@ -950,6 +959,8 @@ public class IRCBridge extends EnhancedPlugin {
                 return plugin.console_channel;
             } else if (name.toUpperCase().endsWith("|IRC")) {
                 return name.substring(0, name.length()-4);
+            } else if (!Character.isLetter(name.charAt(0))) {
+                return "_" + name + "|MC";
             } else {
                 return name + "|MC";
             }
@@ -968,9 +979,11 @@ public class IRCBridge extends EnhancedPlugin {
         public String convertNameWithoutColor(String name) {
             if (name.startsWith("#")) {
                 return name;
-            } else if (!Character.isLetterOrDigit(name.charAt(0))) {
-                // _ is a valid first character.
-                if (name.charAt(0) != '_') {
+            } else if (!Character.isLetter(name.charAt(0))) {
+                // _ is a valid first character for IRC users.
+                // Minecraft users fix otherwise-broken usernams with it.
+                if (   name.charAt(0) != '_'
+                    || name.toUpperCase().endsWith("|MC")) {
                     name = name.substring(1);
                 }
             }
@@ -1009,6 +1022,10 @@ public class IRCBridge extends EnhancedPlugin {
                 if (user_nick.endsWith("|console")) {
                     // Skip the console.
                     continue;
+                }
+
+                if (user_nick.startsWith("_") && user_nick.endsWith("|mc")) {
+                    user_nick = user_nick.substring(1);
                 }
 
                 if (user_nick.startsWith(nick)) {
