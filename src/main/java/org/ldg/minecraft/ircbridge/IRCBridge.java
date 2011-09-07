@@ -41,6 +41,8 @@ public class IRCBridge extends EnhancedPlugin {
     FileHandler message_file = null;
     boolean log_pms;
 
+    final int WHO_PAGE_SIZE=40;
+
     String console_id;
     String default_channel;
     String console_channel;
@@ -800,7 +802,7 @@ public class IRCBridge extends EnhancedPlugin {
             Collections.sort(user_names);
 
             int count = user_names.size();
-            int pages = (int) Math.ceil(count / 20.0);
+            int pages = (int) Math.ceil(count / (float) WHO_PAGE_SIZE);
             if (pages == 1) {
                 for (String user : user_names) {
                     user_list += sep + formats.get(user);
@@ -810,8 +812,8 @@ public class IRCBridge extends EnhancedPlugin {
                 who_page = Math.max(0, Math.min(pages - 1, who_page - 1));
                 page = " (page " + (who_page + 1) + "/" + pages + ")";
 
-                for (int i=0; i<20; i++) {
-                    int user_id = i + (who_page * 20);
+                for (int i = 0; i < WHO_PAGE_SIZE; i++) {
+                    int user_id = i + (who_page * WHO_PAGE_SIZE);
                     if (user_id >= count) {
                         break;
                     }
