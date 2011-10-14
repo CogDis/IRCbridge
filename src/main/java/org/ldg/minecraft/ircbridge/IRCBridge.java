@@ -26,15 +26,20 @@ import org.bukkit.plugin.PluginManager;
 import org.bukkit.permissions.*;
 import org.bukkit.util.config.Configuration;
 
-import com.platymuus.bukkit.permissions.Group;
-import com.platymuus.bukkit.permissions.PermissionsPlugin;
-import com.platymuus.bukkit.permissions.data.DataAccessException;
+
+//Permissions EX support
+import ru.tehkode.permissions.bukkit.PermissionsEx;
+import ru.tehkode.permissions.PermissionManager;
+import ru.tehkode.permissions.PermissionGroup;
+import ru.tehkode.permissions.PermissionUser;
+
 
 import com.hackhalo2.name.Special;
 
 import org.jibble.pircbot.*;
 
 import org.ldg.minecraft.EnhancedPlugin;
+
 
 public class IRCBridge extends EnhancedPlugin {
     Logger message_log = Logger.getLogger("ircbridge.pms");
@@ -60,8 +65,9 @@ public class IRCBridge extends EnhancedPlugin {
 
     public Special special;
 
-    public PermissionsPlugin perms;
-    HashMap<String,ChatColor> group_colors;
+    public PermissionsEx permsPlugin;
+    public PermissionManager perms;
+    //HashMap<String,ChatColor> group_colors;
     ChatColor console_color;
     HashMap<String,ChatColor> irc_colors;
 
@@ -114,11 +120,12 @@ public class IRCBridge extends EnhancedPlugin {
         }
 
         PluginManager pm = getServer().getPluginManager();
-        perms = (PermissionsPlugin) pm.getPlugin("PermissionsBukkit");
-        if (perms == null) {
-            log.info("IRCBridge: PermissionsBukkit not found!");
+        permsPlugin = (PermissionsEx) pm.getPlugin("PermissionsEx");
+        if (permsPlugin == null) {
+            log.info("IRCBridge: PermissionsEx not found!");
             log.info("IRCBridge: Group-based colors will not be available.");
         }
+        perms = permsPlugin.getPermissionManager();
 
         special = (Special) pm.getPlugin("Special");
         if (special == null) {
@@ -211,21 +218,6 @@ public class IRCBridge extends EnhancedPlugin {
                                       config.getStringList("channels.official",
                                                            default_official));
 
-        group_colors = new HashMap<String,ChatColor>();
-        if (perms != null) {
-            List<Group> groups = new Vector<Group>();
-            try {
-                groups = perms.getAllGroups();
-            } catch (DataAccessException e) {
-            }
-
-            for (Group group : groups) {
-                ChatColor color = getColor(config,
-                                           "color.group." + group.getName());
-                group_colors.put(group.getName(), color);
-            }
-        }
-
         irc_colors = new HashMap<String,ChatColor>();
         String[] prefixes = new String[] {"~","&","@","%","+","none"};
 
@@ -279,13 +271,10 @@ public class IRCBridge extends EnhancedPlugin {
 
             ChatColor color = null;
             try {
-                for (Group group : perms.getGroups(username)) {
-                    color = group_colors.get(group.getName());
-                    if (color != null) {
-                        break;
-                    }
-                }
-            } catch (DataAccessException e) {
+                    PermissionUser user = perms.getUser(username);
+                    color = ChatColor.valueOf(user.getOption("ircbridge.color"));
+
+            } catch (Exception e) {
                 complain("unable to get group information for " + username, e);
             }
 
