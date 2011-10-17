@@ -681,7 +681,7 @@ public class IRCBridge extends EnhancedPlugin {
                 ip = player.getAddress().getAddress().getHostAddress();
                 host = player.getAddress().getHostName();
                 name = my_name;
-                nick = my_name + "|MC";
+                nick = my_name + "|" + plugin.console_id +"|MC";
                 if (!Character.isLetter(nick.charAt(0))) {
                     nick = "_" + nick;
                 }
