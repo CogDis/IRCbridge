@@ -49,6 +49,7 @@ public class IRCBridge extends EnhancedPlugin {
     final int WHO_PAGE_SIZE=40;
 
     String console_id;
+    String console_tag;
     String default_channel;
     String console_channel;
 
@@ -174,6 +175,7 @@ public class IRCBridge extends EnhancedPlugin {
 
         // |Console will be appended to this.
         console_id = config.getString("console.id", "The");
+        console_tag = config.getString("console.tag", "NA");
 
         // Channel setup.
         console_channel = config.getString("channels.console", "#console");
@@ -257,17 +259,17 @@ public class IRCBridge extends EnhancedPlugin {
 
         if (prefix.equalsIgnoreCase("_")) {
             prefix = "none";
-        } else if (name.charAt(0) == '_' && name.endsWith("|MC")) {
+        } else if (name.charAt(0) == '_' && name.endsWith("|" + console_tag + "|MC")) {
             name = name.substring(1);
         }
 
-        if (name.endsWith("|MC")) {
+        if (name.endsWith("|" + console_tag + "|MC")) {
             if (perms == null) {
                 return ChatColor.WHITE;
             }
 
             // Minecraft name.
-            String username = name.substring(0, name.length() - 3);
+            String username = name.substring(0, name.length() - (4 + console_tag.length()));
 
             ChatColor color = null;
             try {
@@ -681,7 +683,7 @@ public class IRCBridge extends EnhancedPlugin {
                 ip = player.getAddress().getAddress().getHostAddress();
                 host = player.getAddress().getHostName();
                 name = my_name;
-                nick = my_name + "|" + plugin.console_id +"|MC";
+                nick = my_name + "|" + console_tag + "|MC";
                 if (!Character.isLetter(nick.charAt(0))) {
                     nick = "_" + nick;
                 }
@@ -776,7 +778,7 @@ public class IRCBridge extends EnhancedPlugin {
             HashMap<String,String> formats = new HashMap<String,String>();
             for (User user : users) {
                 String name = user.getPrefix() + user.getNick();
-                boolean is_minecraft = name.toUpperCase().endsWith("|MC");
+                boolean is_minecraft = name.toUpperCase().endsWith("|" + console_tag + "|MC");
                 if (   (ignore_irc       && !is_minecraft)
                     || (ignore_minecraft &&  is_minecraft)) {
                     ignored++;
@@ -848,7 +850,7 @@ public class IRCBridge extends EnhancedPlugin {
 
         protected void onQuit(String sourceNick, String sourceLogin,
                               String sourceHostname, String reason) {
-            if (   !sourceNick.toUpperCase().endsWith("|MC")
+            if (   !sourceNick.toUpperCase().endsWith("|" + console_tag + "|MC")
                 && !sourceNick.toUpperCase().endsWith("|CONSOLE")) {
                 tellUser(ChatColor.YELLOW + convertNameWithoutColor(sourceNick)
                          + " left IRC.");
@@ -951,9 +953,9 @@ public class IRCBridge extends EnhancedPlugin {
             } else if (name.toUpperCase().endsWith("|IRC")) {
                 return name.substring(0, name.length()-4);
             } else if (!Character.isLetter(name.charAt(0))) {
-                return "_" + name + "|MC";
+                return "_" + name + "|" + console_tag + "|MC";
             } else {
-                return name + "|MC";
+                return name + "|" + console_tag + "|MC";
             }
         }
 
@@ -974,13 +976,13 @@ public class IRCBridge extends EnhancedPlugin {
                 // _ is a valid first character for IRC users.
                 // Minecraft users fix otherwise-broken usernams with it.
                 if (   name.charAt(0) != '_'
-                    || name.toUpperCase().endsWith("|MC")) {
+                    || name.toUpperCase().endsWith("|" + console_tag + "|MC")) {
                     name = name.substring(1);
                 }
             }
 
-            if (name.toUpperCase().endsWith("|MC")) {
-                return name.substring(0, name.length()-3);
+            if (name.toUpperCase().endsWith("|" + console_tag + "|MC")) {
+                return name.substring(0, name.length()-(4+console_tag.length()));
             } else if (name.endsWith("|Console")) {
                 return "Console";
             } else {
@@ -1015,7 +1017,7 @@ public class IRCBridge extends EnhancedPlugin {
                     continue;
                 }
 
-                if (user_nick.startsWith("_") && user_nick.endsWith("|mc")) {
+                if (user_nick.startsWith("_") && user_nick.endsWith("|" + console_tag.toLowerCase() + "|mc")) {
                     user_nick = user_nick.substring(1);
                 }
 
@@ -1028,9 +1030,9 @@ public class IRCBridge extends EnhancedPlugin {
         public String matchUser(String rawnick) {
             String reverted = revertName(rawnick);
             // If a full name/channel has been specified, use it.
-            if (!reverted.endsWith("|MC")) {
+            if (!reverted.endsWith("|" + console_tag + "|MC")) {
                 return reverted;
-            } else if (rawnick.toUpperCase().endsWith("|MC")) {
+            } else if (rawnick.toUpperCase().endsWith("|" + console_tag + "|MC")) {
                 return rawnick;
             }
 
@@ -1045,8 +1047,8 @@ public class IRCBridge extends EnhancedPlugin {
                         // Silly, but an easy way to grab the only element.
                         return matches.get(match);
                     }
-                } else if (matches.containsKey(nick + "|mc")) {
-                    return matches.get(nick + "|mc");
+                } else if (matches.containsKey(nick + "|" + console_tag.toLowerCase() + "|mc")) {
+                    return matches.get(nick + "|" + console_tag.toLowerCase() + "|mc");
                 } else if (matches.containsKey(nick)) {
                     return matches.get(nick);
                 }
@@ -1063,8 +1065,8 @@ public class IRCBridge extends EnhancedPlugin {
                     // Silly, but an easy way to grab the only element.
                     return matches.get(match);
                 }
-            } else if (matches.containsKey(nick + "|mc")) {
-                return matches.get(nick + "|mc");
+            } else if (matches.containsKey(nick + "|" + console_tag.toLowerCase() + "|mc")) {
+                return matches.get(nick + "|" + console_tag.toLowerCase() + "|mc");
             } else if (matches.containsKey(nick)) {
                 return matches.get(nick);
             }
