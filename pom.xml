@@ -18,7 +18,7 @@
         <dependency>
                 <groupId>ru.tehkode</groupId>
                 <artifactId>PermissionsEx</artifactId>
-                <version>1.14</version>
+                <version>1.16</version>
         </dependency>
         <dependency>
                 <groupId>org.lost-dimension-games</groupId>

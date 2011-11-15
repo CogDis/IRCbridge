@@ -126,7 +126,7 @@ public class IRCBridge extends EnhancedPlugin {
             log.info("IRCBridge: PermissionsEx not found!");
             log.info("IRCBridge: Group-based colors will not be available.");
         }
-        perms = permsPlugin.getPermissionManager();
+        perms = PermissionsEx.getPermissionManager();
 
         special = (Special) pm.getPlugin("Special");
         if (special == null) {
@@ -599,6 +599,7 @@ public class IRCBridge extends EnhancedPlugin {
         }
 
         public void onPlayerJoin(PlayerJoinEvent event) {
+
             Player player = event.getPlayer();
             String name = player.getName();
             if (connections.containsKey(name)) {
@@ -659,18 +660,29 @@ public class IRCBridge extends EnhancedPlugin {
         public int who_mode = IRCBridge.MINECRAFT;
 
         private Player player = null;
+        ArrayList<String> AllowedChannels;
 
         public IRCConnection(IRCBridge plugin, CommandSender who) {
             this.plugin = plugin;
             if (who instanceof Player) {
                 player = (Player) who;
             }
-
+            AllowedChannels = new ArrayList<String>();
+            // Join permission-based channels.
+            for (String permission : plugin.permission_channels.keySet()) {
+                if (player == null
+                    || player.hasPermission("ircbridge." + permission)) {
+                	AllowedChannels.add(plugin.permission_channels.get(permission));
+                    //joinChannel(plugin.permission_channels.get(permission));
+                }
+            }
             Thread connection_thread = new Thread(this);
             connection_thread.start();
+            //run();
         }
 
-        public synchronized void run() {
+        public void run() {
+        	
             // User info for console.
             String host = "localhost";
             String ip = "127.0.0.1";
@@ -731,17 +743,16 @@ public class IRCBridge extends EnhancedPlugin {
             for (String channel : plugin.autojoin_channels) {
                 joinChannel(channel);
             }
-
-            // Join permission-based channels.
-            for (String permission : plugin.permission_channels.keySet()) {
-                if (player == null
-                    || player.hasPermission("ircbridge." + permission)) {
-                    joinChannel(plugin.permission_channels.get(permission));
-                }
+            
+            //Join the allowed channels
+            for (String channel : this.AllowedChannels)
+            {
+            	joinChannel(channel);
             }
+            
         }
 
-        protected synchronized void partAndQuit(String reason) {
+        protected void partAndQuit(String reason) {
             for (String channel : getChannels()) {
                 partChannel(channel, reason);
             }
