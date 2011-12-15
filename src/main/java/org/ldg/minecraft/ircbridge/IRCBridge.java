@@ -13,6 +13,9 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
+import org.bukkit.event.entity.EntityDeathEvent;
+import org.bukkit.event.entity.PlayerDeathEvent;
+import org.bukkit.event.entity.EntityListener;
 import org.bukkit.event.player.PlayerListener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -146,7 +149,8 @@ public class IRCBridge extends EnhancedPlugin {
                          Event.Priority.Highest, this);
         pm.registerEvent(Event.Type.PLAYER_CHAT, bridge,
                          Event.Priority.Highest, this);
-
+        pm.registerEvent(Event.Type.ENTITY_DEATH, new DeathNotify(this),
+                Event.Priority.Monitor, this);
         bridge.connectAll(getServer().getOnlinePlayers());
     }
 
@@ -563,6 +567,28 @@ public class IRCBridge extends EnhancedPlugin {
         }
 
         return true;
+    }
+    private class DeathNotify extends EntityListener{
+    	private IRCBridge plugin;
+    	public DeathNotify(IRCBridge p)
+    	{
+    		plugin = p;
+    	}
+    	public void onEntityDeath(EntityDeathEvent event)
+    	{
+    		
+    		if(event instanceof PlayerDeathEvent)
+    		{
+    			PlayerDeathEvent pevent = (PlayerDeathEvent) event;
+    			IRCConnection connection = plugin.bridge.connections.get("*CONSOLE*");
+    			if(connection != null && connection.isConnected())
+    			{
+    				String dMessage = pevent.getDeathMessage();
+    				dMessage = dMessage.replaceAll("\\u00A7.", "");
+        			connection.sendMessage(default_channel, "Event: " + dMessage);
+    			}
+    		}
+    	}
     }
 
     private class Bridge extends PlayerListener {
@@ -1088,7 +1114,10 @@ public class IRCBridge extends EnhancedPlugin {
         public void heard(String who, String where, String what) {
             String display_who = convertName(getPrefix(who,where) + who,
                                              isOfficial(where));
-
+            if(display_who.endsWith("Console") && what.startsWith("Event:"))
+            {
+            	return;
+            }
             String intro;
             if (where == null) {
                 intro = who + "->Console:";
