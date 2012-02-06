@@ -1,8 +1,9 @@
 name: IRCBridge
 main: org.ldg.minecraft.ircbridge.IRCBridge
 description: Provides an IRC Bridge for Minecraft chat.
+load: POSTWORLD
 depend: [EnhancedPlugin]
-softdepend: [PermissionsBukkit,Special]
+softdepend: [PermissionsBukkit,Special,Permissions]
 version: 1.0
 commands:
   join:
