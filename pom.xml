@@ -5,25 +5,39 @@
   <version>1.0</version>
   <name>IRCBridge</name>
   <dependencies>
-        <dependency>
-                <groupId>com.precipicegames</groupId>
-                <artifactId>bukkit</artifactId>
-                <version>0.0.1-SNAPSHOT</version>
-        </dependency>
-        <dependency>
-                <groupId>Special</groupId>
-                <artifactId>Special</artifactId>
-                <version>1.0</version>
-        </dependency>
-        <dependency>
-                <groupId>ru.tehkode</groupId>
-                <artifactId>PermissionsEx</artifactId>
-                <version>1.17</version>
-        </dependency>
-        <dependency>
-                <groupId>org.lost-dimension-games</groupId>
-                <artifactId>enhancedplugin</artifactId>
-                <version>1.0</version>
-        </dependency>
+    <dependency>
+      <groupId>com.precipicegames</groupId>
+      <artifactId>bukkit</artifactId>
+      <version>0.0.1-SNAPSHOT</version>
+    </dependency>
+    <dependency>
+      <groupId>Special</groupId>
+      <artifactId>Special</artifactId>
+      <version>2.0</version>
+    </dependency>
+    <dependency>
+      <groupId>ru.tehkode</groupId>
+      <artifactId>PermissionsEx</artifactId>
+      <version>1.17</version>
+    </dependency>
+    <dependency>
+      <groupId>org.lost-dimension-games</groupId>
+      <artifactId>enhancedplugin</artifactId>
+      <version>1.0</version>
+    </dependency>
   </dependencies>
+  <build>
+    <sourceDirectory>${basedir}/src/main/java</sourceDirectory>
+    <resources>
+      <resource>
+        <targetPath>.</targetPath>
+        <filtering>true</filtering>
+        <directory>${basedir}/src/main/resources/</directory>
+        <includes>
+          <include>plugin.yml</include>
+        </includes>
+      </resource>
+    </resources>
+    <finalName>${project.name}</finalName>
+  </build>
 </project>
