@@ -4,21 +4,31 @@
   <artifactId>ircbridge</artifactId>
   <version>1.0</version>
   <name>IRCBridge</name>
+  <repositories>
+    <repository>
+      <id>Bukkit</id>
+      <url>http://repo.bukkit.org/content/groups/public/</url>
+    </repository>
+    <repository>
+      <id>PermissionsEx</id>
+      <url>http://repo.tehkode.ru/repository/repo/</url>
+    </repository>
+  </repositories>
   <dependencies>
     <dependency>
-      <groupId>com.precipicegames</groupId>
+      <groupId>org.bukkit</groupId>
       <artifactId>bukkit</artifactId>
-      <version>0.0.1-SNAPSHOT</version>
+      <version>1.1-R1</version>
     </dependency>
     <dependency>
-      <groupId>Special</groupId>
+      <groupId>com.hackhalo2</groupId>
       <artifactId>Special</artifactId>
       <version>2.0</version>
     </dependency>
     <dependency>
       <groupId>ru.tehkode</groupId>
       <artifactId>PermissionsEx</artifactId>
-      <version>1.17</version>
+      <version>1.18</version>
     </dependency>
     <dependency>
       <groupId>org.lost-dimension-games</groupId>
