@@ -1,47 +1,45 @@
 package org.ldg.minecraft.ircbridge;
 
-import java.io.*;
+import java.io.IOException;
 import java.text.SimpleDateFormat;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Vector;
 import java.util.logging.FileHandler;
 import java.util.logging.Formatter;
-import java.util.logging.Logger;
 import java.util.logging.LogRecord;
+import java.util.logging.Logger;
 
 import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
-import org.bukkit.event.Event;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
-import org.bukkit.event.entity.EntityListener;
-import org.bukkit.event.player.PlayerListener;
-import org.bukkit.event.player.PlayerJoinEvent;
-import org.bukkit.event.player.PlayerQuitEvent;
-import org.bukkit.event.player.PlayerKickEvent;
 import org.bukkit.event.player.PlayerChatEvent;
-import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.PlayerInventory;
-import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.plugin.Plugin;
+import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerKickEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.permissions.Permission;
+import org.bukkit.permissions.PermissionDefault;
 import org.bukkit.plugin.PluginManager;
-import org.bukkit.permissions.*;
 import org.bukkit.util.config.Configuration;
+import org.jibble.pircbot.IrcException;
+import org.jibble.pircbot.PircBot;
+import org.jibble.pircbot.User;
+import org.ldg.minecraft.EnhancedPlugin;
 
-
-//Permissions EX support
-import ru.tehkode.permissions.bukkit.PermissionsEx;
 import ru.tehkode.permissions.PermissionManager;
-import ru.tehkode.permissions.PermissionGroup;
 import ru.tehkode.permissions.PermissionUser;
-
+import ru.tehkode.permissions.bukkit.PermissionsEx;
 
 import com.hackhalo2.name.Special;
-
-import org.jibble.pircbot.*;
-
-import org.ldg.minecraft.EnhancedPlugin;
 
 
 public class IRCBridge extends EnhancedPlugin {
@@ -92,6 +90,7 @@ public class IRCBridge extends EnhancedPlugin {
         return false;
     }
 
+    @Override
     public void onDisable() {
         shutting_down = true;
         bridge.quitAll();
@@ -108,6 +107,7 @@ public class IRCBridge extends EnhancedPlugin {
         super.onDisable();
     }
 
+    @Override
     public void onEnable() {
         super.onEnable();
         shutting_down = false;
@@ -141,7 +141,7 @@ public class IRCBridge extends EnhancedPlugin {
 
         bridge = new Bridge(this);
 
-        pm.registerEvent(Event.Type.PLAYER_JOIN, bridge,
+        /*pm.registerEvent(Event.Type.PLAYER_JOIN, bridge,
                          Event.Priority.Highest, this);
         pm.registerEvent(Event.Type.PLAYER_QUIT, bridge,
                          Event.Priority.Highest, this);
@@ -150,7 +150,9 @@ public class IRCBridge extends EnhancedPlugin {
         pm.registerEvent(Event.Type.PLAYER_CHAT, bridge,
                          Event.Priority.Highest, this);
         pm.registerEvent(Event.Type.ENTITY_DEATH, new DeathNotify(this),
-                Event.Priority.Monitor, this);
+                Event.Priority.Monitor, this);*/
+        pm.registerEvents(bridge, this);
+        pm.registerEvents(new DeathNotify(this), this);
         bridge.connectAll(getServer().getOnlinePlayers());
     }
 
@@ -306,6 +308,7 @@ public class IRCBridge extends EnhancedPlugin {
         }
     }
 
+    @Override
     public boolean onCommand(CommandSender sender, Command command,
                              String commandLabel, String[] args) {
         Player player = null;
@@ -568,12 +571,14 @@ public class IRCBridge extends EnhancedPlugin {
 
         return true;
     }
-    private class DeathNotify extends EntityListener{
-    	private IRCBridge plugin;
+    private class DeathNotify implements Listener{
+    	private final IRCBridge plugin;
     	public DeathNotify(IRCBridge p)
     	{
     		plugin = p;
     	}
+    	
+    	@EventHandler
     	public void onEntityDeath(EntityDeathEvent event)
     	{
     		
@@ -591,9 +596,9 @@ public class IRCBridge extends EnhancedPlugin {
     	}
     }
 
-    private class Bridge extends PlayerListener {
-        private IRCBridge plugin;
-        private HashMap<String,IRCConnection>
+    private class Bridge implements Listener {
+        private final IRCBridge plugin;
+        private final HashMap<String,IRCConnection>
             connections = new HashMap<String,IRCConnection>();
 
         public Bridge(IRCBridge plugin) {
@@ -623,7 +628,7 @@ public class IRCBridge extends EnhancedPlugin {
             }
             connections.clear();
         }
-
+        @EventHandler
         public void onPlayerJoin(PlayerJoinEvent event) {
 
             Player player = event.getPlayer();
@@ -647,19 +652,19 @@ public class IRCBridge extends EnhancedPlugin {
             }
             return false;
         }
-
+        @EventHandler
         public void onPlayerKick(PlayerKickEvent event) {
             if (playerLeft(event.getPlayer())) {
                 event.setLeaveMessage(null);
             }
         }
-
+        @EventHandler
         public void onPlayerQuit(PlayerQuitEvent event) {
             if (playerLeft(event.getPlayer())) {
                 event.setQuitMessage(null);
             }
         }
-
+        @EventHandler
         public void onPlayerChat(PlayerChatEvent event) {
             String message = event.getMessage();
             Player player = event.getPlayer();
@@ -786,7 +791,8 @@ public class IRCBridge extends EnhancedPlugin {
             quitServer(reason);
         }
 
-        protected void onDisconnect() {
+        @Override
+	protected void onDisconnect() {
             tellUser(ChatColor.GRAY + "Connection to IRC lost.", true);
             tellUser(ChatColor.GRAY
                      + "Your default message target has been reset.", true);
@@ -796,7 +802,8 @@ public class IRCBridge extends EnhancedPlugin {
             return plugin.official_channels.contains(channel);
         }
 
-        protected void onUserList(String channel, User[] users) {
+        @Override
+	protected void onUserList(String channel, User[] users) {
             if (!channel.equalsIgnoreCase(who_target)) {
                 // Ignore user lists unless requested.
                 return;
@@ -868,7 +875,8 @@ public class IRCBridge extends EnhancedPlugin {
                      + ": " + user_list);
         }
 
-        protected void onTopic(String channel, String topic, String setBy,
+        @Override
+	protected void onTopic(String channel, String topic, String setBy,
                                long date, boolean changed) {
             if (topic.trim().equals("")) {
                 // Hide empty topics.
@@ -877,7 +885,8 @@ public class IRCBridge extends EnhancedPlugin {
             tellUser(formatChannel(channel) + ChatColor.GREEN + topic, true);
         }
 
-        protected void onJoin(String channel, String sender, String login,
+        @Override
+	protected void onJoin(String channel, String sender, String login,
                               String Hostname) {
             if (!plugin.big_channels.contains(channel)) {
                 tellUser(formatChannel(channel) + ChatColor.YELLOW +
@@ -885,7 +894,8 @@ public class IRCBridge extends EnhancedPlugin {
             }
         }
 
-        protected void onQuit(String sourceNick, String sourceLogin,
+        @Override
+	protected void onQuit(String sourceNick, String sourceLogin,
                               String sourceHostname, String reason) {
             if (   !sourceNick.toUpperCase().endsWith("|" + console_tag + "|MC")
                 && !sourceNick.toUpperCase().endsWith("|CONSOLE")) {
@@ -894,7 +904,8 @@ public class IRCBridge extends EnhancedPlugin {
             }
         }
 
-        protected void onPart(String channel, String sender, String login,
+        @Override
+	protected void onPart(String channel, String sender, String login,
                               String Hostname) {
             if (!plugin.big_channels.contains(channel)) {
                 tellUser(formatChannel(channel) + ChatColor.YELLOW +
@@ -902,7 +913,8 @@ public class IRCBridge extends EnhancedPlugin {
             }
         }
 
-        protected void onKick(String channel, String kickerNick,
+        @Override
+	protected void onKick(String channel, String kickerNick,
                               String kickerLogin, String kickerHostname,
                               String recipientNick, String reason) {
             tellUser(formatChannel(channel) + ChatColor.YELLOW +
@@ -910,7 +922,8 @@ public class IRCBridge extends EnhancedPlugin {
                      + convertNameWithoutColor(kickerNick) + ": " + reason, true);
         }
 
-        protected void onMode(String channel, String sourceNick,
+        @Override
+	protected void onMode(String channel, String sourceNick,
                               String sourceLogin, String sourceHostname,
                               String mode) {
             if (isOfficial(channel) && sourceNick.equalsIgnoreCase("ChanServ")) {
@@ -921,13 +934,15 @@ public class IRCBridge extends EnhancedPlugin {
                      convertNameWithoutColor(sourceNick) + " set mode " + mode, true);
         }
 
-        protected void onNickChange(String oldNick, String login,
+        @Override
+	protected void onNickChange(String oldNick, String login,
                                     String hostname, String newNick) {
             tellUser(ChatColor.YELLOW + convertNameWithoutColor(oldNick)
                      + " is now known as " + convertNameWithoutColor(newNick), true);
         }
 
-        protected void onNotice(String sourceNick, String sourceLogin,
+        @Override
+	protected void onNotice(String sourceNick, String sourceLogin,
                                 String sourceHostname, String target,
                                 String notice) {
             if (sourceNick.toUpperCase().endsWith("SERV")) {
@@ -943,25 +958,29 @@ public class IRCBridge extends EnhancedPlugin {
             }
         }
 
-        protected void onServerResponse(int code, String response) {
+        @Override
+	protected void onServerResponse(int code, String response) {
             if (code >= 400 && code < 500) {
                 String message = response.substring(response.indexOf(":") + 1);
                 tellUser(ChatColor.RED + message, true);
             }
         }
 
-        protected void onMessage(String channel, String sender, String login,
+        @Override
+	protected void onMessage(String channel, String sender, String login,
                                  String hostname, String message) {
             heard(sender, channel, message);
         }
 
-        protected void onPrivateMessage(String sender, String login,
+        @Override
+	protected void onPrivateMessage(String sender, String login,
                                         String hostname, String message) {
             plugin.logMessage(sender + "->" + getName() + ": " + message);
             heard(sender, getName(), message);
         }
 
-        protected void onAction(String sender, String login, String hostname,
+        @Override
+	protected void onAction(String sender, String login, String hostname,
                                 String target, String action) {
             heard(sender, target, "/me " + action);
             if (!target.startsWith("#")) {
@@ -1171,8 +1190,9 @@ public class IRCBridge extends EnhancedPlugin {
     }
 
     private class TinyFormatter extends Formatter {
-        private SimpleDateFormat timestamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-        public String format(LogRecord record) {
+        private final SimpleDateFormat timestamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        @Override
+	public String format(LogRecord record) {
             return timestamp.format(record.getMillis()) + " "
                    + record.getMessage() + "\n";
         }
