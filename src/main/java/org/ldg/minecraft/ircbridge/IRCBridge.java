@@ -1,22 +1,27 @@
 package org.ldg.minecraft.ircbridge;
 
+import java.io.File;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.Vector;
 import java.util.logging.FileHandler;
 import java.util.logging.Formatter;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
+import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -29,7 +34,6 @@ import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.permissions.Permission;
 import org.bukkit.permissions.PermissionDefault;
 import org.bukkit.plugin.PluginManager;
-import org.bukkit.util.config.Configuration;
 import org.jibble.pircbot.IrcException;
 import org.jibble.pircbot.PircBot;
 import org.jibble.pircbot.User;
@@ -81,6 +85,8 @@ public class IRCBridge extends EnhancedPlugin {
     public static final int ALL = 0;
     public static final int MINECRAFT = 1;
     public static final int IRC = 2;
+    
+    private File dataFile;
 
     public boolean beingQuiet() {
         if (shutting_down || startup_time + 5000 > System.currentTimeMillis()) {
@@ -89,7 +95,12 @@ public class IRCBridge extends EnhancedPlugin {
 
         return false;
     }
-
+    
+    @Override
+    public void onLoad() {
+	this.dataFile = new File(this.getDataFolder(), "config.yml");
+    }
+    
     @Override
     public void onDisable() {
         shutting_down = true;
@@ -156,7 +167,7 @@ public class IRCBridge extends EnhancedPlugin {
         bridge.connectAll(getServer().getOnlinePlayers());
     }
 
-    public ChatColor getColor(Configuration config, String node) {
+    public ChatColor getColor(YamlConfiguration config, String node) {
         ChatColor color = ChatColor.WHITE;
 
         String color_name = config.getString(node, "white");
@@ -174,8 +185,12 @@ public class IRCBridge extends EnhancedPlugin {
 
 
     public void configure() {
-        Configuration config = getConfiguration();
-        config.load();
+	YamlConfiguration config = new YamlConfiguration();
+	try {
+	    config.load(dataFile);
+	} catch (Exception e) {
+	    Bukkit.getLogger().warning("[PChat] Error loading IRCBridge Configuration!");
+	}
 
         log_pms = config.getBoolean("log.pms", false);
 
@@ -186,17 +201,24 @@ public class IRCBridge extends EnhancedPlugin {
         // Channel setup.
         console_channel = config.getString("channels.console", "#console");
         default_channel = config.getString("channels.default", "#minecraft");
-        autojoin_channels = config.getStringList("channels.autojoin", null);
-        big_channels = new HashSet<String>(config.getStringList("channels.big",
-                                                                null));
+        autojoin_channels = config.getStringList("channels.autojoin");
+        big_channels = new HashSet<String>(config.getStringList("channels.big"));
 
         permission_channels = new HashMap<String,String>();
-        List<String> permissions = config.getKeys("channels.permissions");
-        if (permissions == null) {
-            config.setProperty("channels.permissions.badass", "#badass");
-            permissions = new Vector<String>();
-            permissions.add("badass");
-        }
+        Set<String> channelPermissions = config.getConfigurationSection("channels.permissions").getKeys(false);
+	List<String> permissions;
+	if (channelPermissions != null) {
+	    permissions = Arrays.asList(channelPermissions.toArray(new String[0]));
+	    if(permissions == null) {
+		config.set("channels.permissions.badass", "#badass");
+		permissions = new Vector<String>();
+		permissions.add("badass");
+	    }
+	} else {
+	    config.set("channels.permissions.badass", "#badass");
+	    permissions = new Vector<String>();
+	    permissions.add("badass");
+	}
 
         // Record and register the permissions for permission-based channels.
         PluginManager pm = getServer().getPluginManager();
@@ -222,9 +244,7 @@ public class IRCBridge extends EnhancedPlugin {
             default_official.add(channel);
         }
 
-        official_channels = new HashSet<String>(
-                                      config.getStringList("channels.official",
-                                                           default_official));
+        official_channels = new HashSet<String>(config.getStringList("channels.official"));
 
         irc_colors = new HashMap<String,ChatColor>();
         String[] prefixes = new String[] {"~","&","@","%","+","none"};
@@ -242,7 +262,12 @@ public class IRCBridge extends EnhancedPlugin {
         server_pass = config.getString("server.password", "");
         webirc_pass = config.getString("server.webirc_password", "");
 
-        config.save();
+        try {
+	    config.save(dataFile);
+	} catch (Exception e) {
+	    Bukkit.getLogger().warning("[PChat] Error saving IRCBridge Configuration! Aborting save!");
+	    Bukkit.getLogger().info(e.getCause().getMessage());
+	}
     }
 
     public void logMessage(String message) {
