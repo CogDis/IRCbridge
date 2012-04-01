@@ -2,8 +2,21 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>org.lost-dimension-games</groupId>
   <artifactId>ircbridge</artifactId>
-  <version>1.0</version>
+  <version>1.1</version>
   <name>IRCBridge</name>
+  <distributionManagement>
+      <!-- use the following if you're not using a snapshot version. -->
+      <repository>
+          <id>repo.precipicegames.com</id>
+          <url>http://repo.precipicegames.com/content/repositories/hidden-release</url>
+      </repository>
+
+      <snapshotRepository>
+          <id>repo.precipicegames.com</id>
+          <url>http://repo.precipicegames.com/content/repositories/hidden-snapshots</url>
+      </snapshotRepository>
+
+  </distributionManagement>
   <repositories>
     <repository>
       <id>Bukkit</id>
@@ -11,7 +24,7 @@
     </repository>
     <repository>
       <id>PermissionsEx</id>
-      <url>http://repo.tehkode.ru/repository/repo/</url>
+      <url>http://repo.tehkode.ru/repository/bukkit-plugins/</url>
     </repository>
   </repositories>
   <dependencies>
@@ -23,12 +36,12 @@
     <dependency>
       <groupId>com.hackhalo2</groupId>
       <artifactId>Special</artifactId>
-      <version>2.0</version>
+      <version>2.1</version>
     </dependency>
     <dependency>
       <groupId>ru.tehkode</groupId>
       <artifactId>PermissionsEx</artifactId>
-      <version>1.18</version>
+      <version>1.19.1</version>
     </dependency>
     <dependency>
       <groupId>org.lost-dimension-games</groupId>
